@@ -8,6 +8,8 @@ import torchvision
 import pytorch_lightning as pl
 from pytorch_lightning import Trainer, LightningModule
 
+from pytorch_lightning.loggers import WandbLogger
+
 AVAIL_GPUS = 2
 
 # Setting the seed
@@ -122,17 +124,23 @@ class AutoEncoder(LightningModule):
 
     def training_step(self, batch, batch_idx):
         loss = self.reconstruction_loss(batch)
-        self.log('train_loss', loss, prog_bar=True)
+        self.log('train_loss', loss)
         return loss
     
     def validation_step(self, batch, batch_idx):
         loss = self.reconstruction_loss(batch)
+        self.log('val_loss', loss)
         return {'val_loss': loss}
 
 def train(latent_dim):
-    trainer = Trainer(gpus=AVAIL_GPUS, max_epochs=10, accelerator='ddp')
-    model = AutoEncoder(base_channel_size=28, latent_dim=latent_dim)
+    wandb_logger = WandbLogger(project='DDP-Example')
 
+    trainer = Trainer(gpus=AVAIL_GPUS, 
+                        max_epochs=10, 
+                        accelerator='ddp', 
+                        logger = wandb_logger)
+
+    model = AutoEncoder(base_channel_size=28, latent_dim=latent_dim)
     trainer.fit(model, train_loader, val_loader)
 
     return model
