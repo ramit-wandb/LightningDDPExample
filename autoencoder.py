@@ -1,5 +1,3 @@
-import os
-
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -9,6 +7,8 @@ import torchvision
 
 import pytorch_lightning as pl
 from pytorch_lightning import Trainer, LightningModule
+
+AVAIL_GPUS = 2
 
 # Setting the seed
 pl.seed_everything(42)
@@ -21,12 +21,8 @@ train_dataset = torchvision.datasets.MNIST(root=DATA_PATH, train=True, download=
 val_dataset = torchvision.datasets.MNIST(root=DATA_PATH, train=False, download=True, 
                     transform=torchvision.transforms.ToTensor())
 
-train_loader = torch.utils.data.DataLoader(train_dataset, batch_size=128, shuffle=True)
-val_loader = torch.utils.data.DataLoader(val_dataset, batch_size=128, shuffle=False)
-
-device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-
-print(f'Device : {device}')
+train_loader = torch.utils.data.DataLoader(train_dataset, batch_size=128, shuffle=True, num_workers=4)
+val_loader = torch.utils.data.DataLoader(val_dataset, batch_size=128, shuffle=False, num_workers=4)
 
 class Encoder(nn.Module):
     def __init__(self, num_input_channels : int, base_channel_size : int, latent_dim : int):
@@ -34,6 +30,7 @@ class Encoder(nn.Module):
         Args:
             num_input_channels (int): Number of input channels
             base_channel_size (int): Number of channels in the first convolutional layer
+                                     This is also used to define the channels in the other layers.
             latent_dim (int) : Dimension of the latent vector
         """
         super(Encoder, self).__init__()
@@ -59,6 +56,7 @@ class Decoder(nn.Module):
         Args:
             num_input_channels (int): Number of input channels
             base_channel_size (int): Number of channels in the first convolutional layer
+                                     This is also used to define the channels in the other layers.
             latent_dim (int) : Dimensionality of latent representation
         """
         super(Decoder, self).__init__()
@@ -132,7 +130,7 @@ class AutoEncoder(LightningModule):
         return {'val_loss': loss}
 
 def train(latent_dim):
-    trainer = Trainer(gpus=0, max_epochs=10)
+    trainer = Trainer(gpus=AVAIL_GPUS, max_epochs=10, accelerator='ddp')
     model = AutoEncoder(base_channel_size=28, latent_dim=latent_dim)
 
     trainer.fit(model, train_loader, val_loader)
