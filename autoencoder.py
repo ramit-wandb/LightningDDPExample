@@ -83,9 +83,14 @@ class Decoder(nn.Module):
     
     def forward(self, x):
         x = self.linear(x)
+
+        # Reshaping the result from linear layer to (4 * c_hid, 4, 4)
         x = x.reshape(x.shape[0], -1, 4, 4)
         return self.network(x)
 
+# A LightningModule is an extension of torch.nn.Module, written to remove all the boilerplate code
+# You can find out more about how it training API works here: 
+# https://pytorch-lightning.readthedocs.io/en/latest/common/trainer.html#under-the-hood
 class AutoEncoder(LightningModule):
     def __init__(self, base_channel_size : int, latent_dim : int, num_input_channels : int = 1):
         '''
@@ -124,16 +129,19 @@ class AutoEncoder(LightningModule):
 
     def training_step(self, batch, batch_idx):
         loss = self.reconstruction_loss(batch)
-        self.log('train_loss', loss)
+        self.log('train_loss', loss, on_step = True, on_epoch = True) # Logs the loss to W&B
         return loss
     
     def validation_step(self, batch, batch_idx):
         loss = self.reconstruction_loss(batch)
-        self.log('val_loss', loss)
+        self.log('val_loss', loss, on_step = False, on_epoch = True) # Logs the loss to W&B
         return {'val_loss': loss}
 
 def train(latent_dim):
     wandb_logger = WandbLogger(project='DDP-Example')
+
+    # Most of our work is handled by the LightningModule, we just have to pass a WandbLogger
+    # object to the Trainer class to handle logging.
 
     trainer = Trainer(gpus=AVAIL_GPUS, 
                         max_epochs=10, 
@@ -141,6 +149,7 @@ def train(latent_dim):
                         logger = wandb_logger)
 
     model = AutoEncoder(base_channel_size=28, latent_dim=latent_dim)
+    
     trainer.fit(model, train_loader, val_loader)
 
     return model
