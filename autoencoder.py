@@ -10,7 +10,7 @@ from pytorch_lightning import Trainer, LightningModule
 
 from pytorch_lightning.loggers import WandbLogger
 
-AVAIL_GPUS = 2
+AVAIL_GPUS = -1 # Use all available GPUs
 
 # Setting the seed
 pl.seed_everything(42)
@@ -138,24 +138,26 @@ class AutoEncoder(LightningModule):
         return {'val_loss': loss}
 
 def train(latent_dim):
+    model = AutoEncoder(base_channel_size=28, latent_dim=latent_dim)
+
     wandb_logger = WandbLogger(project='DDP-Example')
+    wandb_logger.watch(model)
 
     # Most of our work is handled by the LightningModule, we just have to pass a WandbLogger
     # object to the Trainer class to handle logging.
 
     trainer = Trainer(gpus=AVAIL_GPUS, 
-                        max_epochs=10, 
+                        max_epochs=10,
                         accelerator='ddp', 
                         logger = wandb_logger)
 
-    model = AutoEncoder(base_channel_size=28, latent_dim=latent_dim)
     
     trainer.fit(model, train_loader, val_loader)
 
     return model
 
 def main():
-    model = train(latent_dim=10)
+    model = train(latent_dim=32)
 
 if __name__ == '__main__':
     main()
