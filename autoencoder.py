@@ -145,6 +145,9 @@ def train(latent_dim):
 
     # Most of our work is handled by the LightningModule, we just have to pass a WandbLogger
     # object to the Trainer class to handle logging.
+    # You can read more about WandbLogger here:
+    # https://docs.wandb.ai/guides/integrations/lightning
+    # https://pytorch-lightning.readthedocs.io/en/stable/extensions/generated/pytorch_lightning.loggers.WandbLogger.html
 
     trainer = Trainer(gpus=AVAIL_GPUS, 
                         max_epochs=10,
